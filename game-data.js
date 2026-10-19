@@ -33,7 +33,21 @@ window.MONORAIL_DATA = {
   train: {
     cars: 4,                  // 4両編成（公式）
     lengthM: 60.47,           // 全長 60.47 m（公式）
-    colors: { body: '#ffffff', stripe: '#1aa7e0', accent: '#ffb21a', glass: '#1b2d52' },
+    colors: { body: '#ffffff', stripe: '#1aa7e0', accent: '#ffb21a', glass: '#1b2d52' },   // liveries が無い場合の予備
+    liveryByRound: ['blueLine', 'green', 'purple', 'urbanRapid', 'blueLine'],   // ラウンドごとの塗装（実車も編成ごとに塗装が違う）
+    titleLivery: 'blueLine',
+    /* 実車（1000形）の確認できた特徴: 日本跨座式(日立ALWEG)・4両・両開き扉・2段窓・大きな前面窓(右側は小窓)・
+       連結部のキノコ形ホロ・軌道桁 幅850×高1500mm・集電は第三軌条(パンタ無し)・全列車「企救丘」行き。
+       ↓ 確認できていない値（寸法・帯の位置と太さ・各塗装の正確な色）は近似です。写真が手に入れば直してください。 */
+    dims: { width: 2.95, bodyH: 3.3, gap: 0.7, beamW: 0.85, beamH: 1.5, doorsPerSide: 2, windowsPerSide: 6, dest: '企救丘' },
+  },
+  /* 塗装プリセット。body=車体 / stripe=窓下の太い帯 / accent=細い帯 / roof=屋根 / skirt=足回り / front=前面の飾り帯
+     evidence: 'confirmed'=名称と大まかな色が資料で確認済み / 'approx'=名称のみ確認で色は推定 */
+  liveries: {
+    blueLine:   { name: '開業時塗装（ブルーライン）', body: '#e7dfc6', stripe: '#2c6fc4', accent: '#2c6fc4', roof: '#c9c4b0', skirt: '#4a5568', evidence: 'confirmed: クリーム地に青帯（帯位置は推定）' },
+    green:      { name: 'グリーンカラー',             body: '#e9eee4', stripe: '#3aa857', accent: '#9bd36a', roof: '#c8d0c4', skirt: '#47554c', evidence: 'approx: 名称のみ確認' },
+    purple:     { name: 'パープルライン',             body: '#ece8f0', stripe: '#7b4db5', accent: '#c7a6ec', roof: '#cdc8d6', skirt: '#4f4863', evidence: 'approx: 名称のみ確認' },
+    urbanRapid: { name: 'アーバンラピッド',           body: '#e3e9f0', stripe: '#e2493b', accent: '#2f3f63', roof: '#c3ccd8', skirt: '#414c63', evidence: 'approx: 名称のみ確認' },
   },
 
   /* ---------------------------------------------------------------- 2. 駅
@@ -158,6 +172,35 @@ window.MONORAIL_DATA = {
     ],
   },
 
+  /* ---------------------------------------------------------------- 6b. 先バレ演出（パチンコ風）
+     指を離した瞬間の誤差が 0.0 m（表示が「0.0 m」になる範囲）だったとき、結果が出る前に当たりを匂わせる予告を出します。
+     enabled   : false で無効化
+     thresholdM: |誤差| がこの値[m]未満で発動。0.05 = 画面表示が「0.0 m」になる範囲（ねらって約5回に1回が目安）。
+                 もっと厳しくしたいときは 0.005（表示が「0.00 m」の範囲。約50回に1回）。
+     stages    : 離した瞬間からの経過秒 at で順に発動（発車カット → 走行にまたがって進みます）
+        kind 'heartbeat' = 暗転して鼓動（画面の縁が脈打つ）
+        kind 'lamp'      = 上部の保留ランプが n 番目から点灯（青→緑→赤→虹の保留変化）
+        kind 'cutin'     = 帯のカットイン（text / sub / dur[秒]）
+        kind 'persona'   = 赤×黒×白の「決めカット」全画面カットイン（text / sub / tag / dur）。終わるまで発車を待ち、終わると発車！
+        kind 'kakutei'   = 確定演出（車両と目標駅の光柱が虹色に、画面枠が虹色に、text / sub を表示）
+     resultSub : 当たったとき（PERFECT）の結果画面のひとこと                              */
+  foreshadow: {
+    enabled: true,
+    thresholdM: 0.05,
+    lampColors: ['#3aa0ff', '#3fdc7a', '#ff3b4d', 'rainbow'],
+    stages: [
+      { at: 0.00, kind: 'heartbeat' },
+      { at: 0.30, kind: 'lamp', n: 0 },
+      { at: 0.65, kind: 'lamp', n: 1 },
+      { at: 1.00, kind: 'lamp', n: 2 },
+      { at: 1.35, kind: 'lamp', n: 3 },
+      { at: 1.75, kind: 'cutin',   text: '激アツ!!', sub: 'この感じ…来るぞ!?', dur: 0.95 },
+      { at: 2.75, kind: 'persona', text: '確定', sub: 'ぴったり 0.0 m', tag: 'TAKE OFF', dur: 1.8 },
+      { at: 4.60, kind: 'kakutei', text: '確定!!',   sub: 'ぴったり 0.0 m' },
+    ],
+    resultSub: '先バレ的中！ぴったり 0.0 m',
+  },
+
   /* ---------------------------------------------------------------- 7. 採点 */
   score: { distanceBonusMax: 1.0, comboBonus: 100 },
   rank:  [ { id: 'S', min: 0.8 }, { id: 'A', min: 0.55 }, { id: 'B', min: 0.3 }, { id: 'C', min: 0 } ],
@@ -181,6 +224,48 @@ window.MONORAIL_DATA = {
   lighting: { hemiScale: 0.5, sunScale: 0.6, fogNear: 260, fogFar: 2600,
               // 車両の光源（ヘッドライト側の点光源）。night = 夜の強さ / launch = 発車シーン / charge = チャージ最大時 / range = 届く距離[m]
               trainLight: { night: 0.7, launch: 0.5, charge: 0.9, range: 55 } },
+
+  /* ---------------------------------------------------------------- 9b. BGM（モノレールに乗っている気分）
+     WebAudio でその場で演奏します（音源ファイル不要）。enabled:false で無効、volume で全体の音量。
+     ride  : 走行音。hum=駅で鳴る低い電気の唸り / speedHum・speedWhoosh=速度に応じて増える走行音と風切り音
+     chimes: 発車メロディ(departure)と、停車駅が近づく「ピンポーン」(approach)
+     moods : 場面ごとの曲。bpm / swing(0〜0.3) / gain / hum / chords(コード進行・1小節ずつ)
+        chords[].bass = ベース音、notes = コード構成音（音名: C4, F#3, Bb3 のように書く）
+        layers: 楽器ごとの 16 ステップ譜。'.'=休み / 'x'=発音 / 'X'=アクセント
+            pad(和音の持続) comp(エレピのコード) bass kick hat tick(レールの継ぎ目 コトン) mel(メロディ) arp(アルペジオ)
+            mel の数字は notes の何番目か（1オクターブ上で鳴る）。 min=この強さ(0〜1)以上で参加（チャージ中はゲージ量が強さ）
+     moods は title / charge / run / result / final を使います。                            */
+  bgm: {
+    enabled: true, volume: 0.9,
+    ride: { hum: 0.012, speedHum: 0.10, speedWhoosh: 0.06 },
+    chimes: {
+      departure: [ { n: 'E5', at: 0.00, dur: 0.9 }, { n: 'C5', at: 0.30, dur: 0.9 }, { n: 'G4', at: 0.60, dur: 0.9 }, { n: 'C5', at: 0.90, dur: 1.4 } ],
+      approach:  [ { n: 'G5', at: 0.00, dur: 1.0 }, { n: 'E5', at: 0.45, dur: 1.4 } ],
+    },
+    moods: {
+      title: { bpm: 90, swing: 0.12, gain: 1.0, hum: 1.0,
+        chords: [ { bass: 'F2', notes: ['A3','C4','E4','G4'] }, { bass: 'E2', notes: ['G3','B3','D4','F#4'] }, { bass: 'D2', notes: ['F3','A3','C4','E4'] }, { bass: 'C2', notes: ['E3','G3','B3','D4'] } ],
+        layers: { pad:  { pat: 'X...............', gain: 0.05 }, comp: { pat: 'x..x..x...x..x..', gain: 0.06 }, bass: { pat: 'x.....x.x.......', gain: 0.16 },
+                  kick: { pat: 'x.......x.......', gain: 0.18 }, hat:  { pat: 'x.x.x.x.x.x.x.x.', gain: 0.025 }, mel: { pat: '..2...3.4...3.2.', gain: 0.06 } } },
+      charge: { bpm: 128, swing: 0.0, gain: 0.9, hum: 1.0,
+        chords: [ { bass: 'A2', notes: ['C4','E4','G4','B4'] }, { bass: 'F2', notes: ['A3','C4','E4','G4'] }, { bass: 'D2', notes: ['F3','A3','C4','E4'] }, { bass: 'E2', notes: ['G#3','B3','D4','F#4'] } ],
+        layers: { pad:  { pat: 'X...............', gain: 0.05 }, kick: { pat: 'x...x...x...x...', gain: 0.2, min: 0.10 }, bass: { pat: 'x.x.x.x.x.x.x.x.', gain: 0.13, min: 0.20 },
+                  hat:  { pat: '..x...x...x...x.', gain: 0.03, min: 0.30 }, comp: { pat: 'x..x..x.x..x..x.', gain: 0.06, min: 0.45 },
+                  mel:  { pat: '0.2.3.2.0.2.3.5.', gain: 0.06, min: 0.60 }, arp: { pat: 'xxxxxxxxxxxxxxxx', gain: 0.035, min: 0.80 } } },
+      run: { bpm: 118, swing: 0.05, gain: 1.0, hum: 0.4,
+        chords: [ { bass: 'C2', notes: ['E3','G3','B3','D4'] }, { bass: 'G2', notes: ['B3','D4','F#4','A4'] }, { bass: 'A2', notes: ['C4','E4','G4','B4'] }, { bass: 'F2', notes: ['A3','C4','E4','G4'] } ],
+        layers: { pad:  { pat: 'X...............', gain: 0.045 }, comp: { pat: 'x..x..x.x..x..x.', gain: 0.06 }, bass: { pat: 'x..x..x.x..x..x.', gain: 0.15 },
+                  kick: { pat: 'x...x...x...x...', gain: 0.13 }, hat: { pat: '..x...x...x...x.', gain: 0.025 }, tick: { pat: 'x...x...x...x...', gain: 0.5 },
+                  mel:  { pat: '2...3...4...3.2.', gain: 0.06 }, arp: { pat: 'x.x.x.x.x.x.x.x.', gain: 0.025 } } },
+      result: { bpm: 100, swing: 0.1, gain: 0.7, hum: 0.0,
+        chords: [ { bass: 'C2', notes: ['E3','G3','B3','D4'] }, { bass: 'A2', notes: ['C4','E4','G4','B4'] } ],
+        layers: { pad: { pat: 'X...............', gain: 0.05 }, comp: { pat: 'x.......x.......', gain: 0.05 }, mel: { pat: '....2.......3...', gain: 0.05 } } },
+      final: { bpm: 84, swing: 0.1, gain: 1.0, hum: 0.0,
+        chords: [ { bass: 'F2', notes: ['A3','C4','E4','G4'] }, { bass: 'G2', notes: ['B3','D4','E4','A4'] }, { bass: 'E2', notes: ['G3','B3','D4','F#4'] }, { bass: 'A2', notes: ['C4','E4','G4','B4'] } ],
+        layers: { pad: { pat: 'X...............', gain: 0.055 }, comp: { pat: 'x..x..x...x..x..', gain: 0.06 }, bass: { pat: 'x.....x.x.......', gain: 0.15 },
+                  kick: { pat: 'x.......x.......', gain: 0.15 }, mel: { pat: '2...3...4.3.2...', gain: 0.065 } } },
+    },
+  },
 
   /* ---------------------------------------------------------------- 9. カメラ（車両中心からの相対位置[m]） */
   camera: {

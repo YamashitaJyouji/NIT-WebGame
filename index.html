@@ -1862,15 +1862,23 @@ const panel = (g, y0, y1) => { g.save(); Gfx.rr(g, 12, y0, 336, y1 - y0, 18); g.
 Scenes.map.menu = {
   enter() { bgEnter(this); this.btns = []; },
   update(dt) { bgUpdate(this, dt); },
-  build() {
-    const p = Share.pending, L = []; let y = 92;
-    if (p) {
-      L.push({ id: 'pending', x: 20, y, w: 320, h: 58, primary: true, label: p.kind === 'c' ? `友だちのチャレンジに挑戦！（相手 ${U.fmt(p.score)}点）` : 'オンライン対戦に招待されました → 参加', sub: p.kind === 'c' ? '同じ5駅で勝負' : '返信コードをつくって送ります' }); y += 68;
-    }
-    const items = [['solo', 'ひとりで遊ぶ', '今日のお題（日替わり・ランキング）'], ['hot', '2人で交代対戦', '1台のスマホを回して対決'], ['chal', 'チャレンジを作る', '同じ5駅を友だちに送って対決'], ['online', 'オンライン対戦', 'つないでリアルタイムで勝負'], ['paste', 'コード・URLを貼り付ける', 'チャレンジや招待を受け取る']];
-    items.forEach((it, i) => L.push({ id: it[0], x: 20, y: y + i * 66, w: 320, h: 58, label: it[1], sub: it[2] }));
-    this.btns = L;
-  },
+build() {
+  const p = Share.pending, L = []; let y = 80;
+  if (p) {
+    L.push({ id: 'pending', x: 20, y, w: 320, h: 48, primary: true, label: p.kind === 'c' ? `友だちのチャレンジに挑戦！（相手 ${U.fmt(p.score)}点）` : 'オンライン対戦に招待されました → 参加', sub: p.kind === 'c' ? '同じ5駅で勝負' : '返信コードをつくって送ります' }); 
+    y += 56;
+  }
+  const items = [
+    ['solo', 'ひとりで遊ぶ', '今日のお題（日替わり・ランキング）'], 
+    ['hot', '2人で交代対戦', '1台のスマホを回して対決'], 
+    ['chal', 'チャレンジを作る', '同じ5駅を友だちに送って対決'], 
+    ['online', 'オンライン対戦', 'つないでリアルタイムで勝負'], 
+    ['paste', 'コード・URLを貼り付ける', 'チャレンジや招待を受け取る']
+  ];
+  // ボタンの高さを 58 -> 50、間隔を 66 -> 56 に小さく調整
+  items.forEach((it, i) => L.push({ id: it[0], x: 20, y: y + i * 56, w: 320, h: 50, label: it[1], sub: it[2] }));
+  this.btns = L;
+},
   onDown() {},
   onUp() {
     const b = Btns.hit(this.btns, Input.pos); if (!b || this.t < 0.25) return; Sound.tone(660, 0.1, { type: 'triangle', gain: 0.12 });

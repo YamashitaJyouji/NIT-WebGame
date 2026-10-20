@@ -386,12 +386,13 @@ const State = {
   },
   // モード: 'solo'（今日のお題）/ 'hot'（2人交代）/ 'challenge'（同じ5駅を送りあう）/ 'online'（オンライン対戦）
   mode: 'solo', seed: null, ch: null, nPlayers: 1, cur: 0, P: [null, null],
-  start(mode, o = {}) {
-    this.mode = mode; this.ch = o.ch || null; this.nPlayers = mode === 'hot' ? 2 : 1;
-    this.seed = o.seed != null ? o.seed : (mode === 'solo' ? null : (Math.random() * 4294967296) >>> 0);
-    this.round = 0; this.cur = 0; this.score = 0; this.combo = 0; this.results = []; this.newRecord = false; this.P = [null, null];
-    this.targets = this.pickTargets(DATA.rounds, this.seed);
-  },
+ start(mode, o = {}) {
+  this.mode = mode; this.ch = o.ch || null; this.nPlayers = mode === 'hot' ? 2 : 1;
+  // solo モードの時も毎回ランダムなシード値（または完全ランダム）にする
+  this.seed = o.seed != null ? o.seed : (Math.random() * 4294967296) >>> 0;
+  this.round = 0; this.cur = 0; this.score = 0; this.combo = 0; this.results = []; this.newRecord = false; this.P = [null, null];
+  this.targets = this.pickTargets(DATA.rounds, this.seed);
+},
   reset() { this.start(this.mode, { seed: this.mode === 'solo' ? null : this.seed, ch: this.ch }); },   // 同じ設定でもう一度
   stash() { this.P[this.cur] = { score: this.score, combo: this.combo, results: this.results }; },
   switchTo(i) { this.stash(); this.cur = i; const p = this.P[i] || { score: 0, combo: 0, results: [] }; this.score = p.score; this.combo = p.combo; this.results = p.results; },

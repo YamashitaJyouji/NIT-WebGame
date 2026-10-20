@@ -34,7 +34,7 @@ window.MONORAIL_DATA = {
     cars: 4,                  // 4両編成（公式）
     lengthM: 60.47,           // 全長 60.47 m（公式）
     colors: { body: '#ffffff', stripe: '#1aa7e0', accent: '#ffb21a', glass: '#1b2d52' },   // liveries が無い場合の予備
-    liveryByRound: ['blueLine', 'green', 'purple', 'urbanRapid', 'blueLine'],   // ラウンドごとの塗装（実車も編成ごとに塗装が違う）
+    liveryByRound: ['blueLine', 'green', 'purple', 'urbanRapid', 'openingCream'],   // ラウンドごとの塗装（実車も編成ごとに塗装が違う）
     titleLivery: 'blueLine',
     /* 実車（1000形）の確認できた特徴: 日本跨座式(日立ALWEG)・4両・両開き扉・2段窓・大きな前面窓(右側は小窓)・
        連結部のキノコ形ホロ・軌道桁 幅850×高1500mm・集電は第三軌条(パンタ無し)・全列車「企救丘」行き。
@@ -44,7 +44,9 @@ window.MONORAIL_DATA = {
   /* 塗装プリセット。body=車体 / stripe=窓下の太い帯 / accent=細い帯 / roof=屋根 / skirt=足回り / front=前面の飾り帯
      evidence: 'confirmed'=名称と大まかな色が資料で確認済み / 'approx'=名称のみ確認で色は推定 */
   liveries: {
-    blueLine:   { name: '開業時塗装（ブルーライン）', body: '#e7dfc6', stripe: '#2c6fc4', accent: '#2c6fc4', roof: '#c9c4b0', skirt: '#4a5568', evidence: 'confirmed: クリーム地に青帯（帯位置は推定）' },
+    // 参考写真（raillab 掲載の1000形）: 白い車体に、窓下の太い青帯と窓上の細い青線。前面は黒いマスクに大きな窓、下に丸いマーク、青い行先表示、足回りは明るいグレーの台車カバー
+    blueLine:   { name: 'ブルーライン（白地に青帯）', body: '#e9eef3', stripe: '#2c63b8', accent: '#2c63b8', roof: '#c7ced8', skirt: '#cfd6de', evidence: 'photo: 参考写真から（青の濃さは推定）' },
+    openingCream: { name: '開業時塗装（クリーム地に青帯）', body: '#e7dfc6', stripe: '#2c6fc4', accent: '#2c6fc4', roof: '#c9c4b0', skirt: '#4a5568', evidence: 'confirmed: クリーム地に青帯（帯位置は推定）' },
     green:      { name: 'グリーンカラー',             body: '#e9eee4', stripe: '#3aa857', accent: '#9bd36a', roof: '#c8d0c4', skirt: '#47554c', evidence: 'approx: 名称のみ確認' },
     purple:     { name: 'パープルライン',             body: '#ece8f0', stripe: '#7b4db5', accent: '#c7a6ec', roof: '#cdc8d6', skirt: '#4f4863', evidence: 'approx: 名称のみ確認' },
     urbanRapid: { name: 'アーバンラピッド',           body: '#e3e9f0', stripe: '#e2493b', accent: '#2f3f63', roof: '#c3ccd8', skirt: '#414c63', evidence: 'approx: 名称のみ確認' },
@@ -55,19 +57,19 @@ window.MONORAIL_DATA = {
      spot: 駅選択カードに出す一言（出典は landmarks の source / 下記コメント）
      color: 駅舎・屋根のポップな差し色（演出用）                                      */
   stations: [
-    { id: 'kokura',      name: '小倉',         kana: 'こくら',                 km: 0.0, color: '#ff7a59', spot: '駅ビルの中ほどから発車！' },
-    { id: 'heiwadori',   name: '平和通',       kana: 'へいわどおり',           km: 0.4, color: '#ffb21a', spot: '小倉から最初の駅（0.4 km）' },
-    { id: 'tanga',       name: '旦過',         kana: 'たんが',                 km: 0.7, color: '#2fc4b2', spot: '旦過市場・勝山公園が近い' },
-    { id: 'kawaraguchi', name: '香春口三萩野', kana: 'かわらぐちみはぎの',     km: 1.6, color: '#7a6cff', spot: '車窓に旦過市場の再開発' },
-    { id: 'katano',      name: '片野',         kana: 'かたの',                 km: 2.4, color: '#ff5d8f', spot: '手前で都市高速の上を走る' },
-    { id: 'jono',        name: '城野',         kana: 'じょうの',               km: 3.2, color: '#4aa8ff', spot: 'JR日豊本線をまたぐ' },
-    { id: 'kitagata',    name: '北方',         kana: 'きたがた',               km: 4.2, color: '#ffa43a', spot: '都市高速と交差する' },
-    { id: 'keibajo',     name: '競馬場前',     kana: 'けいばじょうまえ',       km: 4.9, color: '#46c26a', spot: '小倉競馬場のコースが見える' },
-    { id: 'moritsune',   name: '守恒',         kana: 'もりつね',               km: 5.7, color: '#e85ad8', spot: '' },
-    { id: 'tokuriki1',   name: '徳力公団前',   kana: 'とくりきこうだんまえ',   km: 6.6, color: '#ff8a4a', spot: '先でユニークなマンション群' },
-    { id: 'tokuriki2',   name: '徳力嵐山口',   kana: 'とくりきあらしやまぐち', km: 7.3, color: '#3fd0e0', spot: 'ユニークなマンション群の区間' },
-    { id: 'shii',        name: '志井',         kana: 'しい',                   km: 8.2, color: '#9be04a', spot: '' },
-    { id: 'kikugaoka',   name: '企救丘',       kana: 'きくがおか',             km: 8.8, color: '#ff6b6b', spot: '志井公園・車両基地が近い' },
+    { id: 'kokura',      name: '小倉',         kana: 'こくら',                 km: 0.0, color: '#ff7a59', spot: '駅ビルの中ほどから発車！', tip: '駅ビル4階がモノレールの終点ホーム。ここから全線8.8km・約19分の旅が始まる' },
+    { id: 'heiwadori',   name: '平和通',       kana: 'へいわどおり',           km: 0.4, color: '#ffb21a', spot: '小倉から最初の駅（0.4 km）', tip: '小倉から最初の駅。わずか0.4kmで着く' },
+    { id: 'tanga',       name: '旦過',         kana: 'たんが',                 km: 0.7, color: '#2fc4b2', spot: '旦過市場・勝山公園が近い', tip: '旦過市場・勝山公園が近い。昔ながらの市場の街' },
+    { id: 'kawaraguchi', name: '香春口三萩野', kana: 'かわらぐちみはぎの',     km: 1.6, color: '#7a6cff', spot: '車窓に旦過市場の再開発', tip: '旦過市場の再開発が車窓から見える。黄金市場やTOTOミュージアムも近い' },
+    { id: 'katano',      name: '片野',         kana: 'かたの',                 km: 2.4, color: '#ff5d8f', spot: '手前で都市高速の上を走る', tip: 'この前後の区間は都市高速道路の上を走る' },
+    { id: 'jono',        name: '城野',         kana: 'じょうの',               km: 3.2, color: '#4aa8ff', spot: 'JR日豊本線をまたぐ', tip: 'JR日豊本線の上をまたいで走る' },
+    { id: 'kitagata',    name: '北方',         kana: 'きたがた',               km: 4.2, color: '#ffa43a', spot: '都市高速と交差する', tip: '都市高速道路と交差するあたり' },
+    { id: 'keibajo',     name: '競馬場前',     kana: 'けいばじょうまえ',       km: 4.9, color: '#46c26a', spot: '小倉競馬場のコースが見える', tip: '小倉競馬場のコースが車窓から見える' },
+    { id: 'moritsune',   name: '守恒',         kana: 'もりつね',               km: 5.7, color: '#e85ad8', spot: '', tip: '終点の企救丘まで、あと3.1km' },
+    { id: 'tokuriki1',   name: '徳力公団前',   kana: 'とくりきこうだんまえ',   km: 6.6, color: '#ff8a4a', spot: '先でユニークなマンション群', tip: 'このあたりからユニークなマンション群の区間' },
+    { id: 'tokuriki2',   name: '徳力嵐山口',   kana: 'とくりきあらしやまぐち', km: 7.3, color: '#3fd0e0', spot: 'ユニークなマンション群の区間', tip: 'ユニークなマンション群が車窓に並ぶ区間' },
+    { id: 'shii',        name: '志井',         kana: 'しい',                   km: 8.2, color: '#9be04a', spot: '', tip: '終点・企救丘の1つ手前の駅（営業キロ8.2km）' },
+    { id: 'kikugaoka',   name: '企救丘',       kana: 'きくがおか',             km: 8.8, color: '#ff6b6b', spot: '志井公園・車両基地が近い', tip: '終点。志井公園・車両基地が近い。全列車がここまで走る' },
   ],
 
   /* ---------------------------------------------------------------- 3. 名所
@@ -141,7 +143,7 @@ window.MONORAIL_DATA = {
 
   /* ---------------------------------------------------------------- 5. 判定（誤差の許容[m]） */
   judge: [
-    { id: 'PERFECT', tol: 1,  score: 1000, label: 'PERFECT!', sub: 'ジャスト停車！', color: '#ffd24a', edge: '#7a3b00' },
+    { id: 'PERFECT', tol: 1,  score: 1800, label: 'PERFECT!', sub: 'ジャスト停車！', color: '#ffd24a', edge: '#7a3b00' },
     { id: 'GREAT',   tol: 5,  score: 600,  label: 'GREAT!',   sub: 'ナイス停車！',   color: '#6dffb8', edge: '#06503a' },
     { id: 'GOOD',    tol: 10, score: 300,  label: 'GOOD',     sub: '停車成功',       color: '#8fdcff', edge: '#0b3c66' },
   ],
@@ -202,7 +204,24 @@ window.MONORAIL_DATA = {
   },
 
   /* ---------------------------------------------------------------- 7. 採点 */
-  score: { distanceBonusMax: 1.0, comboBonus: 100 },
+  score: {
+    /* 1ラウンドの最大は 2000 点 × 5 = 10000 点。距離（駅の遠さ）による有利・不利はありません。
+       justTol : 誤差がこの値[m]未満（表示「0.0 m」）を「ジャスト」とし、justPts 点（満点）。
+       PERFECT : 誤差 justTol〜1 m で perfectMax → perfectMin 点に下がる。 GREAT / GOOD は judge の score。
+       comboBonus : 連続で停車成功するたびに +この点（2回目から）。ジャスト以外は nonJustCap 点が上限なので、
+                    10000 点になれるのは 5 回ともジャストのときだけ。                                        */
+    justTol: 0.05, justPts: 2000, perfectMax: 1800, perfectMin: 1000, comboBonus: 100, nonJustCap: 1990,
+  },
+  /* オンライン対戦（端末同士を直接つなぐ WebRTC）。iceServers: 接続の手助けをする STUN サーバー（無料の公開サーバー）。
+     自分の STUN/TURN に変えたいときはここを書き換えます。同じ Wi-Fi 内なら無くてもつながることが多いです。 */
+  online: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] },
+  /* 今日のお題（日替わり）: seeded:true なら、その日（日本時間）は全員同じ 5 駅になります（ランキングを公平にするため） */
+  daily: { seeded: true },
+  /* ランキング（今日のベスト）
+     endpoint を空にすると、このページの共有データベース（db）を使います。使えるのは「このページを開けて書き込みを許された人」だけで、
+     見知らぬ全国の人の書き込みは受け付けられません。全国向けにするには、同梱の ranking-worker.js を自分のサーバー（Cloudflare Workers）に置き、
+     その URL をここに書いてください（GET ?day=YYYY-MM-DD で一覧、POST で登録）。                                     */
+  ranking: { enabled: true, endpoint: '', top: 10, collection: 'ranking' },
   rank:  [ { id: 'S', min: 0.8 }, { id: 'A', min: 0.55 }, { id: 'B', min: 0.3 }, { id: 'C', min: 0 } ],
   rounds: 5,
 
@@ -276,7 +295,7 @@ window.MONORAIL_DATA = {
   },
 
   /* ---------------------------------------------------------------- 10. 文言 */
-  storageKey: 'kokura-monorail-dash.best.v2',
+  storageKey: 'kokura-monorail-dash.best.v3',
   text: {
     title1: '小倉貫通！', title2: 'モノレール・ダッシュ', tagline: '小倉駅ビルを突き抜けろ',
     rules: ['画面を長押しでパワーをためる', '目標駅の位置で指を離して発車', 'ぴたっと停めて高得点'],

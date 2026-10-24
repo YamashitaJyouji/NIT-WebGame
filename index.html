@@ -65,7 +65,9 @@ body {
    ========================================================================== */
 const fatal = (msg) => { const f = document.getElementById('fatal'); f.textContent = msg; f.style.display = 'flex'; };
 const DATA = window.MONORAIL_DATA;
+const BUILD = 'v17';
 if (!DATA) { fatal('game-data.js を読み込めませんでした。同じ場所に置いてください。'); return; }
+if (!DATA.score || DATA.score.justTol == null || !DATA.bgm || !DATA.online) { fatal('game-data.js が古い版です。kokura-monorail-dash.html と game-data.js を両方とも新しい版に差し替え、ブラウザを再読み込み（キャッシュ削除）してください。'); return; }
 if (!window.THREE) { fatal('3Dライブラリ（three.js）を読み込めませんでした。通信状況を確認して再読み込みしてください。'); return; }
 const T = window.THREE;
 
@@ -254,6 +256,9 @@ const Sound = {
     else if (kind === 'lamp') { const f = [523, 659, 784, 1047][n] || 880; this.tone(f, 0.22, { type: 'triangle', gain: 0.2 }); this.tone(f * 2, 0.16, { type: 'sine', gain: 0.08, delay: 0.04 }); }
     else if (kind === 'cutin') { this.noise(0.25, { type: 'highpass', f0: 5000, f1: 1500, gain: 0.35 }); this.tone(220, 0.7, { type: 'sawtooth', slide: 3.2, gain: 0.22 }); this.tone(110, 0.5, { type: 'square', gain: 0.12, delay: 0.1 }); }
     else if (kind === 'persona') { this.tone(55, 0.9, { type: 'sawtooth', slide: 0.5, gain: 0.3 }); this.noise(0.35, { type: 'highpass', f0: 6000, f1: 900, gain: 0.5 }); [0, 0.16, 0.32].forEach((d) => this.tone(880, 0.1, { type: 'square', gain: 0.1, delay: d })); [392, 494, 587, 784].forEach((f) => this.tone(f, 0.55, { type: 'sawtooth', gain: 0.08, delay: 0.5 })); this.tone(1175, 0.9, { type: 'triangle', gain: 0.16, delay: 0.55 }); this.noise(0.5, { type: 'bandpass', f0: 300, f1: 2500, gain: 0.3, delay: 0.9 }); }
+    else if (kind === 'fail') { this.tone(392, 0.4, { type: 'triangle', slide: 0.62, gain: 0.2 }); this.tone(262, 0.6, { type: 'triangle', slide: 0.5, gain: 0.2, delay: 0.28 }); this.noise(0.5, { type: 'lowpass', f0: 900, f1: 120, gain: 0.18, delay: 0.1 }); }
+    else if (kind === 'lampoff') { this.tone(180, 0.5, { type: 'sine', slide: 0.35, gain: 0.3 }); this.noise(0.3, { type: 'lowpass', f0: 500, f1: 80, gain: 0.2 }); }
+    else if (kind === 'rev') { this.noise(0.35, { type: 'highpass', f0: 6500, f1: 1200, gain: 0.45 }); [392, 523, 659, 784].forEach((f, i) => this.tone(f, 0.28, { type: 'square', gain: 0.1, delay: 0.05 + i * 0.05 })); this.tone(98, 0.6, { type: 'sawtooth', slide: 2.4, gain: 0.24 }); }
     else if (kind === 'kakutei') { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => this.tone(f, 0.3, { type: 'square', gain: 0.09, delay: i * 0.07 })); this.noise(0.5, { type: 'highpass', f0: 4500, f1: 1800, gain: 0.25, delay: 0.3 }); this.tone(1568, 0.9, { type: 'triangle', gain: 0.16, delay: 0.45 }); }
   },
   crash() { this.noise(0.8, { type: 'lowpass', f0: 1400, f1: 120, gain: 0.5 }); this.tone(90, 0.6, { type: 'sawtooth', slide: 0.4, gain: 0.25 }); },
@@ -463,17 +468,19 @@ const Input = {
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
       const p = pos(e), b = MUTE_BTN; this.pos = p;
       if (p.x >= b.x - 6 && p.x <= b.x + b.w + 6 && p.y >= b.y - 6 && p.y <= b.y + b.h + 6) { Sound.setMuted(!Sound.muted); return; }
+      if (Pause.active) return;
+      if (Pause.hitBtn(p)) { Pause.open(); return; }
       this.press();
     });
-    const up = (e) => { e.preventDefault(); if (e.clientX != null) this.pos = pos(e); this.release(); };
-    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    const up = (e, isUp) => { e.preventDefault(); if (e.clientX != null) this.pos = pos(e); if (Pause.active) { if (isUp) Pause.onUp(this.pos); return; } this.release(); };
+    el.addEventListener('pointerup', (e) => up(e, true)); el.addEventListener('pointercancel', (e) => up(e, false));
     el.addEventListener('lostpointercapture', () => this.release());
     window.addEventListener('blur', () => this.release());
-    window.addEventListener('keydown', (e) => { if (e.target && /^(TEXTAREA|INPUT|BUTTON)$/.test(e.target.tagName)) return; this.pos = null; if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); Sound.unlock(); this.press(); } });
+    window.addEventListener('keydown', (e) => { if (e.target && /^(TEXTAREA|INPUT|BUTTON)$/.test(e.target.tagName)) return; this.pos = null; if (e.code === 'Escape' || e.code === 'KeyP') { if (!e.repeat) { e.preventDefault(); Pause.toggle(); } return; } if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat && !Pause.active) { e.preventDefault(); Sound.unlock(); this.press(); } });
     window.addEventListener('keyup', (e) => { if (e.target && /^(TEXTAREA|INPUT|BUTTON)$/.test(e.target.tagName)) return; if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); this.release(); } });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   },
-  press() { if (this.down) return; this.down = true; if (Scenes.cur && Scenes.cur.onDown) Scenes.cur.onDown(); },
+  press() { if (this.down || Pause.active) return; this.down = true; if (Scenes.cur && Scenes.cur.onDown) Scenes.cur.onDown(); },
   release() { if (!this.down) return; this.down = false; if (Scenes.cur && Scenes.cur.onUp) Scenes.cur.onUp(); },
 };
 
@@ -482,27 +489,48 @@ const Input = {
    離した瞬間に begin() で判定し、発車カット → 走行にまたがって update()/draw*() が進める。設定は game-data.js の foreshadow。
    ========================================================================== */
 const Spoiler = {
-  on: false, t: 0, fired: [], lamps: 0, cut: null, per: null, kak: -1, rainbow: 0,
-  cfg() { return DATA.foreshadow || { enabled: false, thresholdM: 0.05, stages: [], lampColors: [] }; },
-  reset() { this.on = false; this.t = 0; this.fired = []; this.lamps = 0; this.cut = null; this.per = null; this.kak = -1; this.rainbow = 0; },
-  // 離した瞬間の誤差[m] が条件を満たせば開始
+  on: false, t: 0, runT: 0, inRun: false, calm: false, pat: null, force: null, fired: [], lamps: 0, cut: null, per: null, kak: -1, rainbow: 0,
+  cfg() { return DATA.foreshadow || { enabled: false, thresholdM: 0.05, patterns: [], lampColors: [] }; },
+  patterns() { const c = this.cfg(); return c.patterns && c.patterns.length ? c.patterns : [{ id: 'classic', stages: c.stages || [] }]; },
+  stages() { return this.pat && this.pat.stages ? this.pat.stages : []; },
+  reset() { this.on = false; this.t = 0; this.runT = 0; this.inRun = false; this.calm = false; this.pat = null; this.fired = []; this.lamps = 0; this.cut = null; this.per = null; this.kak = -1; this.rainbow = 0; },
+  // パターンを 1 つランダムに選ぶ（force に id を入れると固定。テスト用）
+  pick() {
+    const a = this.patterns(); if (this.force) { const f = a.find((p) => p.id === this.force); if (f) return f; }
+    const tot = a.reduce((s, p) => s + (p.w == null ? 1 : p.w), 0); let r = Math.random() * tot;
+    for (const p of a) { r -= (p.w == null ? 1 : p.w); if (r < 0) return p; } return a[a.length - 1];
+  },
+  // 離した瞬間の誤差[m] が条件を満たせば開始（パターンもここで決まる）
   begin(errM) {
     this.reset(); const c = this.cfg();
     if (!c.enabled || !(Math.abs(errM) < c.thresholdM)) return false;
-    this.on = true; return true;
+    this.pat = this.pick(); this.calm = !!this.pat.calm; this.on = true; return true;
   },
-  // 確定のカットインが終わるまで、発車を待たせる
-  holding() { if (!this.on) return false; const p = this.cfg().stages.find((x) => x.kind === 'persona'); return !!p && this.t < p.at + (p.dur || 1.8); },
+  stretch() { return this.on && this.pat && this.pat.runStretch ? this.pat.runStretch : 1; },
+  toRun() { this.inRun = true; this.runT = 0; },
+  // 発車前に終わらせたいカットイン（persona / hold:true）の最中は、発車を待たせる
+  holding() { if (!this.on) return false; return this.stages().some((x) => (x.hold || x.kind === 'persona') && x.when !== 'run' && this.t < x.at + (x.dur || 1.8)); },
   hue(t) { return ((t * 0.6) % 1 + 1) % 1; },
+  fire(s) {
+    Sound.spoil(s.sfx || s.kind, s.n);
+    if (s.kind === 'lamp') { this.lamps = Math.max(this.lamps, (s.n || 0) + 1); this.calm = false; }
+    else if (s.kind === 'lampoff') { this.lamps = 0; this.calm = true; }
+    else if (s.kind === 'cutin') { this.cut = { t0: this.t, s }; if (s.style === 'rev') Flash.hit('#ffffff', 0.5, 6); }
+    else if (s.kind === 'persona') this.per = { t0: this.t, s };
+    else if (s.kind === 'kakutei') { this.kak = this.t; this.calm = false; Flash.hit('#fff3c0', 0.7, 3); }
+  },
+  // 停車までに確定まで届かなかったときは、ここで確定させる（必ず「確定」で終わる）
+  settle() {
+    if (!this.on) return; const st = this.stages();
+    if (this.kak < 0) { const i = st.findIndex((s) => s.kind === 'kakutei'); if (i >= 0) { this.fired[i] = true; this.fire(st[i]); } else { this.kak = this.t; this.calm = false; } }
+    st.forEach((s, i) => { this.fired[i] = true; }); this.cut = null; this.per = null;
+  },
   update(dt) {
     if (!this.on) { this.rainbow = 0; return; }
-    this.t += dt; const st = this.cfg().stages;
-    st.forEach((s, i) => {
-      if (this.fired[i] || this.t < s.at) return; this.fired[i] = true; Sound.spoil(s.kind, s.n);
-      if (s.kind === 'lamp') this.lamps = Math.max(this.lamps, (s.n || 0) + 1);
-      else if (s.kind === 'cutin') this.cut = { t0: this.t, s };
-      else if (s.kind === 'persona') this.per = { t0: this.t, s };
-      else if (s.kind === 'kakutei') { this.kak = this.t; Flash.hit('#fff3c0', 0.7, 3); }
+    this.t += dt; if (this.inRun) this.runT += dt;
+    this.stages().forEach((s, i) => {
+      const now = s.when === 'run' ? (this.inRun ? this.runT : -1) : this.t;
+      if (this.fired[i] || now < s.at) return; this.fired[i] = true; this.fire(s);
     });
     this.rainbow = this.kak >= 0 ? U.smooth(0, 0.4, this.t - this.kak) : 0;
   },
@@ -515,7 +543,7 @@ const Spoiler = {
   },
   // 画面の縁の脈動と、確定後の虹色の枠（UI の下に敷く）
   drawBack(g) {
-    if (!this.on) return;
+    if (!this.on || this.calm) return;
     const t = this.t, lv = this.lamps, beat = Math.max(0, Math.sin(t * (6 + 2.5 * lv))), a = (0.1 + 0.07 * lv) * (0.4 + 0.6 * beat);
     g.save();
     const vg = g.createRadialGradient(W / 2, H / 2, 150, W / 2, H / 2, 430); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,' + (0.22 + 0.4 * a * 2).toFixed(3) + ')');
@@ -567,7 +595,8 @@ const Spoiler = {
     this.drawPersona(g);
     const t = this.t, cols = this.cfg().lampColors || [];
     // 保留ランプ（点灯した分だけ、青 → 緑 → 赤 → 虹）
-    for (let i = 0; i < 4; i++) {
+    const hasLamps = this.stages().some((s) => s.kind === 'lamp');
+    for (let i = 0; hasLamps && i < 4; i++) {
       const x = 180 + (i - 1.5) * 26, y = 110, lit = i < this.lamps, c = cols[i] || '#ffffff', col = !lit ? 'rgba(255,255,255,0.18)' : (c === 'rainbow' ? 'hsl(' + Math.round(this.hue(t) * 360) + ',100%,60%)' : c);
       g.save(); if (lit) { g.shadowColor = col; g.shadowBlur = 12; } g.fillStyle = col; g.beginPath(); g.arc(x, y, 8 + (lit && i === this.lamps - 1 ? 2 * Math.sin(t * 16) : 0), 0, Math.PI * 2); g.fill();
       g.shadowBlur = 0; g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 1.5; g.stroke(); g.restore();
@@ -578,22 +607,22 @@ const Spoiler = {
       if (k < 1) {
         const inK = U.smooth(0, 0.14, k), outK = 1 - U.smooth(0.82, 1, k), a = Math.min(inK, outK), cy = 330, hh = 118 * a, pop = 1 + 1.6 * Math.exp(-14 * (this.t - c.t0));
         g.save(); g.globalAlpha = 1; g.translate(W / 2, cy); g.rotate(-0.07);
-        const bg = g.createLinearGradient(-W, 0, W, 0); bg.addColorStop(0, '#2a0008'); bg.addColorStop(0.5, '#9d0f1c'); bg.addColorStop(1, '#2a0008');
-        g.fillStyle = bg; g.fillRect(-W, -hh / 2, W * 2, hh); g.fillStyle = '#ffd24a'; g.fillRect(-W, -hh / 2, W * 2, 3); g.fillRect(-W, hh / 2 - 3, W * 2, 3);
+        const bg = g.createLinearGradient(-W, 0, W, 0); const fl = c.s.style === 'fail'; bg.addColorStop(0, fl ? '#050912' : '#2a0008'); bg.addColorStop(0.5, fl ? '#34445f' : '#9d0f1c'); bg.addColorStop(1, fl ? '#050912' : '#2a0008');
+        g.fillStyle = bg; g.fillRect(-W, -hh / 2, W * 2, hh); g.fillStyle = fl ? '#8aa0c4' : '#ffd24a'; g.fillRect(-W, -hh / 2, W * 2, 3); g.fillRect(-W, hh / 2 - 3, W * 2, 3);
         g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(255,230,160,0.5)'; g.lineWidth = 2;
         for (let i = 0; i < 18; i++) { const x = ((t * 700 + i * 83) % (W * 2)) - W, l = 40 + (i % 4) * 30; g.beginPath(); g.moveTo(x, -hh / 2 + 8 + (i * 13) % (hh - 16)); g.lineTo(x + l, -hh / 2 + 8 + (i * 13) % (hh - 16)); g.stroke(); }
         g.globalCompositeOperation = 'source-over'; g.scale(pop * a, pop * a);
         const o = Object.assign({}, DISP, { size: 62, align: 'center' });
-        Gfx.text(g, c.s.text, 0, 12, Object.assign({}, o, { color: '#ffe14a', stroke: '#ffffff', strokeW: 20 }));
-        Gfx.text(g, c.s.text, 0, 12, Object.assign({}, o, { color: '#ffe14a', stroke: '#c1121f', strokeW: 11 }));
-        Gfx.text(g, c.s.text, 0, 12, Object.assign({}, o, { color: '#fff3a0' }));
+        Gfx.text(g, c.s.text, 0, 12, Object.assign({}, o, { color: fl ? '#dfe8f7' : '#ffe14a', stroke: fl ? '#8aa0c4' : '#ffffff', strokeW: 20 }));
+        Gfx.text(g, c.s.text, 0, 12, Object.assign({}, o, { color: fl ? '#dfe8f7' : '#ffe14a', stroke: fl ? '#1c2a44' : '#c1121f', strokeW: 11 }));
+        Gfx.text(g, c.s.text, 0, 12, Object.assign({}, o, { color: fl ? '#f4f8ff' : '#fff3a0' }));
         if (c.s.sub) Gfx.text(g, c.s.sub, 0, 40, { size: 13, weight: 900, align: 'center', color: '#fff', stroke: 'rgba(0,0,0,0.7)', strokeW: 4 });
         g.restore();
       }
     }
     // 確定バナー（虹色）
     if (this.rainbow > 0) {
-      const k = this.rainbow, kk = this.t - this.kak, kc = this.cfg().stages.find((s) => s.kind === 'kakutei') || {}, sc = 1 + 1.2 * Math.exp(-9 * kk) + 0.04 * Math.sin(t * 10);
+      const k = this.rainbow, kk = this.t - this.kak, kc = this.stages().find((s) => s.kind === 'kakutei') || {}, sc = 1 + 1.2 * Math.exp(-9 * kk) + 0.04 * Math.sin(t * 10);
       const rg = g.createLinearGradient(-130, 0, 130, 0); for (let i = 0; i <= 6; i++) rg.addColorStop(i / 6, 'hsl(' + Math.round(((this.hue(t) + i / 6) % 1) * 360) + ',100%,62%)');
       g.save(); g.translate(180, 262); g.scale(sc, sc); g.globalAlpha = k;
       const o = Object.assign({}, DISP, { size: 56, align: 'center' });
@@ -709,7 +738,7 @@ const Hud = {
   gauge(g, gauge, y) {
     const x = 24, w = 312, h = 30, c = DATA.gaugeSettings;
     g.save();
-    Gfx.text(g, 'POWER', x, y - 8, { size: 11, color: '#e6f0ff', stroke: 'rgba(0,0,0,0.5)', strokeW: 3 });
+    Gfx.text(g, 'POWER（ぜんたい）', x, y - 8, { size: 11, color: '#e6f0ff', stroke: 'rgba(0,0,0,0.5)', strokeW: 3 });
     const m = gauge.meters, near = Math.abs(m - gauge.target) <= gauge.Z;
     Gfx.text(g, near ? `${m.toFixed(1)} m` : U.fmt(m) + ' m', x + w, y - 6, Object.assign({}, DISP, { size: 17, align: 'right', stroke: 'rgba(0,0,0,0.55)', strokeW: 4 }));
     Gfx.rr(g, x, y, w, h, 8); g.fillStyle = '#0a1430'; g.fill(); g.strokeStyle = '#2a4170'; g.lineWidth = 1.5; g.stroke();
@@ -733,7 +762,10 @@ const Hud = {
   },
   loupe(g, gauge, y) {
     const c = DATA.gaugeSettings, d = gauge.meters - gauge.target;
-    if (Math.abs(d) > c.loupeM * 1.5) return;
+    if (Math.abs(d) > c.loupeM * 1.5) {            // 遠いあいだは、うすい枠で「ここに拡大ゲージが出る」と知らせる
+      g.save(); g.globalAlpha = 0.4; Gfx.rr(g, 24, y, 312, 26, 7); g.fillStyle = 'rgba(6,14,36,0.7)'; g.fill(); g.setLineDash([5, 4]); g.strokeStyle = 'rgba(255,210,74,0.6)'; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]);
+      Gfx.text(g, '目標に近づくと、ここに拡大ゲージ（ルーペ）が出るよ', 180, y + 17, { size: 11, align: 'center', color: '#ffe9a8' }); g.restore(); return;
+    }
     const a = U.clamp(1 - (Math.abs(d) - c.loupeM) / (c.loupeM * 0.5), 0, 1) * 0.5 + 0.5;
     const x = 24, w = 312, h = 26, ppm = w / (c.loupeM * 2), cx = x + w / 2;
     g.save(); g.globalAlpha = a;
@@ -744,7 +776,7 @@ const Hud = {
     g.fillStyle = 'rgba(255,255,255,0.3)'; for (let m = -c.loupeM; m <= c.loupeM; m += 5) g.fillRect(cx + m * ppm - 0.5, y + h - 5, 1, 5);
     g.fillStyle = '#fff'; g.fillRect(U.clamp(cx + d * ppm, x, x + w) - 1.5, y - 2, 3, h + 4);
     g.restore();
-    Gfx.text(g, 'ルーペ', x + 6, y - 4, { size: 9, color: '#ffd24a', stroke: 'rgba(0,0,0,0.5)', strokeW: 3 });
+    Gfx.text(g, 'ルーペ（拡大）', x + 6, y - 4, { size: 9, color: '#ffd24a', stroke: 'rgba(0,0,0,0.5)', strokeW: 3 });
     Gfx.text(g, `誤差 ${U.sign(d, 1)} m`, x + w, y - 4, { size: 10, align: 'right', color: Math.abs(d) <= 1 ? '#ffd24a' : '#e6f0ff', stroke: 'rgba(0,0,0,0.5)', strokeW: 3 });
     g.restore();
   },
@@ -1361,7 +1393,7 @@ Scenes.map.title = {
     setCam(175 + 46 * Math.sin(w), TRACK_Y + 10 + Math.sin(this.t * 0.5) * 3, 58 + 10 * Math.cos(w), 92, TRACK_Y + 5, 0, c.fov);
     FX.update(dt);
   },
-  onDown() { if (this.t > 0.2) { Sound.tone(660, 0.12, { type: 'triangle', gain: 0.15 }); Scenes.go('menu'); } },
+  onDown() { if (this.t > 0.2) { Sound.tone(660, 0.12, { type: 'triangle', gain: 0.15 }); Scenes.go(Tutorial.done() ? 'menu' : 'tutorial'); } },
   draw(g) {
     const t = this.t, tx = DATA.text;
     g.save();
@@ -1380,6 +1412,7 @@ Scenes.map.title = {
       Gfx.text(g, s, 78, 273 + i * 30, { size: 14, color: '#eaf2ff' });
     });
     g.restore();
+    Gfx.text(g, BUILD, 346, 632, { size: 9, align: 'right', color: 'rgba(255,255,255,0.45)' });
     Gfx.text(g, `全線 ${DATA.line.lengthKm} km・${DATA.line.stationCount}駅`, 180, 372, { size: 12, align: 'center', color: '#cfe0ff', stroke: 'rgba(0,0,0,0.55)', strokeW: 4 });
     if (State.best > 0) Gfx.text(g, `BEST ${U.fmt(State.best)}`, 180, 398, Object.assign({}, DISP, { size: 16, align: 'center', color: '#ffd24a', stroke: 'rgba(0,0,0,0.55)', strokeW: 4 }));
     if (DATA.daily && DATA.daily.seeded) Gfx.text(g, `今日のお題 ${State.dayKey().slice(5).replace('-', '/')}  みんな同じ5駅！`, 180, 424, { size: 12, align: 'center', color: '#9fe6ff', stroke: 'rgba(0,0,0,0.55)', strokeW: 4 });
@@ -1405,7 +1438,7 @@ Scenes.map.charge = {
   update(dt) {
     this.t += dt;
     const charging = this.phase === 'charging';
-    if (charging) { this.gauge.update(dt); Sound.chargeSet(this.gauge.p); Music.inten = Math.max(0.12, this.gauge.p); }
+    if (charging) { this.holdT = (this.holdT || 0) + dt; this.gauge.update(dt); Sound.chargeSet(this.gauge.p); Music.inten = Math.max(0.12, this.gauge.p); }
     const p = charging ? this.gauge.p : 0, c = DATA.camera.charge, sh = charging ? 0.06 + 0.5 * p : 0.03;
     World.chargeFx(p); World.train.arrow.visible = false;
     placeTrain(0, { dy: rnd() * sh * 0.4, jz: rnd() * sh * 0.4, rz: rnd() * sh * 0.01 });
@@ -1416,9 +1449,11 @@ Scenes.map.charge = {
     pos.needsUpdate = true; this.streaks.material.opacity = charging ? 0.15 + 0.7 * p : 0.12;
     FX.update(dt);
   },
-  onDown() { if (this.phase === 'ready' && this.t > 0.3) { this.phase = 'charging'; Sound.chargeStart(); } },
+  onDown() { if (this.phase === 'ready' && this.t > 0.3) { this.phase = 'charging'; this.holdT = 0; Sound.chargeStart(); } },
   onUp() {
     if (this.phase !== 'charging') return;
+    // ポチッと一瞬だけ押して離した（連打・ミスタップ）→ 発車させずに、やり直し
+    if ((this.holdT || 0) < ((DATA.charge && DATA.charge.minHoldSec) || 0.3)) { this.phase = 'ready'; this.holdT = 0; this.gauge = Gauge.create(this.target.m); Sound.chargeStop(); Toast.show('長押ししてね！押している間ゲージがのびるよ', 2.8); return; }
     this.phase = 'released'; Sound.chargeStop();
     Scenes.go('launch', { target: this.target, D: this.gauge.meters, p: this.gauge.p });
   },
@@ -1499,10 +1534,11 @@ Scenes.map.run = {
     this.brakeDone = false; this.chimed = false; this.rt = 0; this.fwTimer = 0; this.scoreShown = 0; this.res = null; this.sparkT = 0;
     this.derailed = this.D + TRAIN_LEN / 2 > END_X;
     this.err = this.D - this.target.m;
-    this.judge = Judgement.evaluate(this.err, this.derailed);
+    this.judge = Judgement.evaluate(this.err, this.derailed); Spoiler.toRun();
     if (Spoiler.on && this.judge.id === 'PERFECT') this.judge.sub = (DATA.foreshadow && DATA.foreshadow.resultSub) || this.judge.sub;   // 先バレ的中
     this.anchor = this.judge.ok ? this.target.m : this.D;           // 停車カメラの注視点
     this.T = DATA.run.baseSec + DATA.run.secPerSqrtKm * Math.sqrt(this.D / 1000);
+    if (Spoiler.on && this.judge.id === 'PERFECT') this.T *= Spoiler.stretch();           // 演出の時間を確保するため、走行をゆっくりに
     this.zoomF = this.judge.id === 'PERFECT' ? DATA.run.zoomPerfect : this.judge.id === 'GREAT' ? DATA.run.zoomGreat : 1;
     FX.clear(); World.applyPalette(State.round); World.setTarget(this.target); World.setChargeMode(false);
     this.camPos = null;
@@ -1514,7 +1550,7 @@ Scenes.map.run = {
     return d;
   },
   finish() {
-    this.phase = 'result'; this.rt = 0;
+    this.phase = 'result'; this.rt = 0; if (this.judge.id === 'PERFECT') Spoiler.settle(); else Spoiler.reset();
     const j = this.judge; this.res = State.record(j, this.err); Sound.result(j.id); if (State.mode === 'online') Net.send({ t: 'res', r: State.round, pts: this.res.pts, err: this.err, id: j.id, score: State.score }); Music.setMood('result'); Music.speed = 0;
     const p = World.project(this.x, TRACK_Y + 3, 0) || { x: 180, y: 330 };
     if (j.id === 'PERFECT') { Flash.hit('#fff3c0', 0.6, 4); this.fwTimer = 0; }
@@ -1736,6 +1772,46 @@ const Btns = {
   hit(list, p) { return p ? list.find((b) => !b.off && !b.hide && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) || null : null; },
 };
 
+/* ---- 中断メニュー（ゲーム中の左下「MENU」ボタン / Esc キー）。つづける・やりなおし・やめてメニューへ ---- */
+const Pause = {
+  active: false, t: 0, btns: [], B: { x: 10, y: 592, w: 70, h: 36 },
+  // ボタンを出す場面: チャージ・発車カット・走行中（結果表示中は出さない）
+  canShow() { const c = Scenes.cur; return !!c && (c === Scenes.map.charge || c === Scenes.map.launch || (c === Scenes.map.run && c.phase === 'run')); },
+  hitBtn(p) { const b = this.B; return !!p && this.canShow() && p.x >= b.x - 4 && p.x <= b.x + b.w + 4 && p.y >= b.y - 4 && p.y <= b.y + b.h + 4; },
+  open() {
+    if (this.active || !this.canShow()) return; this.active = true; this.t = 0; Input.down = false;
+    const on = State.mode === 'online';
+    this.btns = [
+      { id: 'resume', x: 40, y: 228, w: 280, h: 58, primary: true, label: 'つづける' },
+      { id: 'restart', x: 40, y: 302, w: 280, h: 52, label: 'はじめからやり直す', sub: on ? '' : '5駅ぜんぶ最初から', hide: on },
+      { id: 'quit', x: 40, y: on ? 302 : 370, w: 280, h: 58, label: 'やめてメニューへ', sub: on ? '相手との接続が切れます' : '今のゲームは記録されません' },
+    ];
+    Sound.chargeStop();
+    try { if (Sound.ctx && Sound.ctx.suspend) Sound.ctx.suspend(); } catch (e) { /* ignore */ }
+  },
+  close() { this.active = false; try { if (Sound.ctx && Sound.ctx.resume) Sound.ctx.resume(); } catch (e) { /* ignore */ } },
+  toggle() { if (this.active) this.close(); else this.open(); },
+  onUp(p) {
+    if (this.t < 0.25) return; const b = Btns.hit(this.btns, p); if (!b) return;
+    this.close();
+    if (b.id === 'restart') { State.reset(); Scenes.go('charge'); }
+    else if (b.id === 'quit') { if (State.mode === 'online') Net.close(); State.start('solo'); Scenes.go('menu'); }
+  },
+  update(dt) { if (this.active) this.t += dt; },
+  draw(g) {
+    if (!this.active) {
+      if (!this.canShow()) return; const b = this.B; g.save();
+      Gfx.rr(g, b.x, b.y, b.w, b.h, 12); g.fillStyle = 'rgba(8,16,38,0.6)'; g.fill(); g.strokeStyle = 'rgba(190,215,255,0.55)'; g.lineWidth = 1.5; g.stroke();
+      g.strokeStyle = '#dbe8ff'; g.lineWidth = 2; g.lineCap = 'round'; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(b.x + 11, b.y + 11 + i * 7); g.lineTo(b.x + 25, b.y + 11 + i * 7); g.stroke(); }
+      Gfx.text(g, 'MENU', b.x + 31, b.y + 23, { size: 11, weight: 900, color: '#dbe8ff' }); g.restore(); return;
+    }
+    g.save(); g.fillStyle = 'rgba(4,8,22,0.82)'; g.fillRect(0, 0, W, H);
+    Gfx.text(g, 'PAUSE', 180, 150, Object.assign({}, DISP, { size: 40, align: 'center' }));
+    Gfx.text(g, 'ゲームをとめています', 180, 184, { size: 13, align: 'center', color: '#9fb6e0' });
+    Btns.draw(g, this.btns, this.t); g.restore();
+  },
+};
+
 /* ---- コード・URL のやりとり（チャレンジ/招待/返信）。#c= チャレンジ  #o= 招待  #a= 返信 ---- */
 const Share = {
   pending: null,
@@ -1874,7 +1950,8 @@ build() {
     ['hot', '2人で交代対戦', '1台のスマホを回して対決'], 
     ['chal', 'チャレンジを作る', '同じ5駅を友だちに送って対決'], 
     ['online', 'オンライン対戦', 'つないでリアルタイムで勝負'], 
-    ['paste', 'コード・URLを貼り付ける', 'チャレンジや招待を受け取る']
+    ['paste', 'コード・URLを貼り付ける', 'チャレンジや招待を受け取る'],
+    ['tuto', 'あそびかた', '初めての人はここから（チュートリアル）']
   ];
   // ボタンの高さを 58 -> 50、間隔を 66 -> 56 に小さく調整
   items.forEach((it, i) => L.push({ id: it[0], x: 20, y: y + i * 56, w: 320, h: 50, label: it[1], sub: it[2] }));
@@ -1887,6 +1964,7 @@ build() {
     else if (b.id === 'hot') { State.start('hot'); Scenes.go('handoff'); }
     else if (b.id === 'chal') { State.start('challenge'); Scenes.go('charge'); }
     else if (b.id === 'online') Scenes.go('lobby');
+    else if (b.id === 'tuto') Scenes.go('tutorial');
     else if (b.id === 'paste') Sig.open({ title: 'コード・URL を貼り付け', msg: '友だちから届いたチャレンジ URL、または招待コードを貼り付けてください。', inLabel: 'ここに貼り付け', ok: '読み込む', onOk: async (v) => { if (!(await Share.accept(v))) throw new Error('読み込めませんでした。コードを確かめてください'); Sig.close(true); Toast.show('受け取りました！'); } });
     else if (b.id === 'pending') {
       const p = Share.pending; Share.pending = null;
@@ -1982,6 +2060,104 @@ Scenes.map.vsready = {
   },
 };
 
+/* ---- チュートリアル（あそびかた）。初回は自動で始まり、メニューの「あそびかた」からいつでも見られる ----
+   ① 長押しでためる ② ゲージは 2 本（全体 + ルーペ） ③ 練習（実際に押して離してみる）                       */
+const Tutorial = {
+  done() { return Ranking.lsGet('.tuto') === '1'; },
+  mark() { Ranking.lsSet('.tuto', '1'); },
+};
+Scenes.map.tutorial = {
+  enter() {
+    bgEnter(this); this.step = 0; this.st = 0; this.phase = 'ready'; this.hold = 0; this.res = null; this.tries = 0;
+    this.target = STATIONS.find((s) => s.id === 'jono') || STATIONS[5]; this.mock = Gauge.create(this.target.m); this.gauge = Gauge.create(this.target.m); this.setBtns();
+  },
+  go(n) { this.step = n; this.st = 0; this.phase = 'ready'; this.hold = 0; this.res = null; this.gauge = Gauge.create(this.target.m); Sound.chargeStop(); this.setBtns(); },
+  setBtns() {
+    const next = { id: 'next', x: 20, y: 548, w: 320, h: 50, primary: true, label: 'つぎへ ▶' }, back = { id: 'back', x: 20, y: 604, w: 150, h: 30, label: '◀ もどる' };
+    if (this.step === 0) this.btns = [next, { id: 'skip', x: 190, y: 604, w: 150, h: 30, label: 'スキップ' }];
+    else if (this.step === 1) this.btns = [next, back, { id: 'skip', x: 190, y: 604, w: 150, h: 30, label: 'スキップ' }];
+    else if (this.phase === 'result') this.btns = [{ id: 'again', x: 20, y: 548, w: 150, h: 50, label: 'もう一度' }, { id: 'ok', x: 190, y: 548, w: 150, h: 50, primary: true, label: 'OK！ゲームへ' }, back];
+    else this.btns = [back, { id: 'skip', x: 190, y: 604, w: 150, h: 30, label: 'スキップ' }];
+  },
+  exit() { Sound.chargeStop(); },
+  finish() { Tutorial.mark(); Scenes.go('menu'); },
+  update(dt) {
+    bgUpdate(this, dt); this.st += dt;
+    if (this.step === 2 && this.phase === 'charging') { this.gauge.update(dt); this.hold += dt; Sound.chargeSet(this.gauge.p); }
+  },
+  onDown() {
+    if (this.step !== 2 || this.phase !== 'ready' || this.st < 0.35 || Btns.hit(this.btns, Input.pos)) return;
+    this.phase = 'charging'; this.hold = 0; Sound.chargeStart();
+  },
+  onUp() {
+    const b = Btns.hit(this.btns, Input.pos);
+    if (this.step === 2 && this.phase === 'charging') {                 // 長押しを離した
+      Sound.chargeStop(); const min = (DATA.charge && DATA.charge.minHoldSec) || 0.3;
+      if (this.hold < min) { this.phase = 'ready'; this.hold = 0; this.gauge = Gauge.create(this.target.m); Toast.show('ポチッと押すだけではダメ！押しっぱなしにしてね', 3); return; }
+      const err = this.gauge.meters - this.target.m, j = Judgement.evaluate(err, false); this.res = { err, j }; this.phase = 'result'; this.tries++; Sound.result(j.id); this.st = 0; this.setBtns(); return;
+    }
+    if (!b || this.st < 0.3) return; Sound.tone(660, 0.1, { type: 'triangle', gain: 0.12 });
+    if (b.id === 'next') { if (this.step < 2) this.go(this.step + 1); } else if (b.id === 'back') this.go(Math.max(0, this.step - 1));
+    else if (b.id === 'skip' || b.id === 'ok') this.finish(); else if (b.id === 'again') this.go(2);
+  },
+  head(g, n, title) {
+    g.fillStyle = 'rgba(4,8,22,0.8)'; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 3; i++) { g.fillStyle = i === n ? '#ffd24a' : 'rgba(255,255,255,0.25)'; g.beginPath(); g.arc(150 + i * 30, 30, 5, 0, Math.PI * 2); g.fill(); }
+    Gfx.text(g, 'あそびかた', 180, 62, { size: 12, align: 'center', color: '#8ea8d8' });
+    Gfx.text(g, title, 180, 92, Object.assign({}, DISP, { size: Gfx.fit(g, title, 320, 24, FONT_D, 400), align: 'center', color: '#ffe9a8' }));
+  },
+  finger(g, x, y, t, down) {
+    g.save(); g.translate(x, y); const s = down ? 0.9 : 1.1;
+    if (down) { g.strokeStyle = 'rgba(255,210,74,' + (0.5 + 0.4 * Math.sin(t * 8)) + ')'; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 26 + 4 * Math.sin(t * 8), 0, Math.PI * 2); g.stroke(); }
+    g.scale(s, s); g.fillStyle = 'rgba(255,255,255,0.92)'; g.beginPath(); g.arc(0, 0, 16, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffb21a'; g.beginPath(); g.arc(0, 0, 9, 0, Math.PI * 2); g.fill(); g.restore();
+  },
+  draw(g) {
+    const t = this.st, n = this.step, G = this.mock;
+    if (n === 0) {
+      this.head(g, 0, '① 長押しでパワーをためる');
+      const cyc = t % 3.6, hold = cyc < 2.6, p = hold ? Math.min(1, cyc / 2.4) * 0.75 : 0; G.p = p;
+      Hud.gauge(g, G, 200);
+      this.finger(g, 180, 330, t, hold); Gfx.text(g, hold ? '押している間、ゲージがのびる' : '指をはなすと発車！', 180, 382, { size: 15, weight: 900, align: 'center', color: '#fff' });
+      panel(g, 410, 520);
+      Gfx.text(g, '○ 押しっぱなしにする', 40, 446, { size: 16, weight: 900, color: '#6dffb8' });
+      Gfx.text(g, '× ポチポチ連打（すぐ離すと発車しません）', 40, 478, { size: 14, weight: 900, color: '#ff9a9a' });
+      Gfx.text(g, 'ゲージを見ながら、狙う位置まで押し続けよう', 40, 504, { size: 12, color: '#cfe0ff' });
+    } else if (n === 1) {
+      this.head(g, 1, '② ゲージは 2 本あるよ！');
+      G.p = G.pt + G.z * 1.5 * Math.sin(t * 1.3); Hud.gauge(g, G, 124);
+      g.save(); g.fillStyle = '#ffd24a'; g.font = '900 14px sans-serif'; g.restore();
+      Gfx.rr(g, 16, 196, 328, 52, 10); g.fillStyle = 'rgba(255,210,74,0.12)'; g.fill(); g.strokeStyle = 'rgba(255,210,74,0.6)'; g.lineWidth = 1.5; g.stroke();
+      Gfx.text(g, '① 上のゲージ＝ぜんたい（0〜9 km）', 28, 218, { size: 14, weight: 900, color: '#ffd24a' });
+      Gfx.text(g, '黄色い枠が目標駅のあたり。ここまで押し続ける', 28, 238, { size: 12, color: '#eaf2ff' });
+      Hud.loupe(g, G, 284);
+      Gfx.rr(g, 16, 326, 328, 74, 10); g.fillStyle = 'rgba(111,255,184,0.1)'; g.fill(); g.strokeStyle = 'rgba(109,255,184,0.6)'; g.stroke();
+      Gfx.text(g, '② 下のゲージ＝ルーペ（拡大）', 28, 348, { size: 14, weight: 900, color: '#6dffb8' });
+      Gfx.text(g, '黄色い枠に入ると動き出す、細かい目盛り。', 28, 368, { size: 12, color: '#eaf2ff' });
+      Gfx.text(g, '白い線を、中央の黄色い所に合わせて離す！', 28, 386, { size: 12, color: '#eaf2ff' });
+      [[DATA.judge[0], 'ぴったり ±1m'], [DATA.judge[1], 'ぐっど ±5m'], [DATA.judge[2], 'ぎりぎり ±10m']].forEach(([j, s], i) => { Gfx.rr(g, 16 + i * 112, 420, 104, 28, 8); g.fillStyle = j.color; g.fill(); Gfx.text(g, s, 68 + i * 112, 439, { size: 11, weight: 900, align: 'center', color: '#1a1a1a' }); });
+      Gfx.text(g, 'ぴったり停めるほど高得点！', 180, 474, { size: 13, weight: 900, align: 'center', color: '#fff' });
+      Gfx.text(g, '（ルーペは、目標に近づくまでうすく表示されます）', 180, 498, { size: 11, align: 'center', color: '#9fb6e0' });
+    } else {
+      this.head(g, 2, '③ 練習してみよう');
+      const Gc = this.gauge, charging = this.phase === 'charging', tg = this.target;
+      Gfx.text(g, `目標: ${tg.name} 駅（${U.km1(tg.m)}）`, 180, 124, { size: 15, weight: 900, align: 'center', color: '#fff' });
+      Hud.gauge(g, Gc, 190); Hud.loupe(g, Gc, 262);
+      const near = Math.abs(Gc.meters - tg.m) <= DATA.gaugeSettings.zoneM, msg = this.phase === 'result' ? '' : !charging ? '画面を押しっぱなしにしてスタート！' : Gc.p >= 1 ? '最大！指をはなしてみよう' : near ? 'ルーペを見て！白い線が黄色に来たら離す！' : 'そのまま押し続けて… 黄色い枠をめざす';
+      if (msg) Gfx.text(g, msg, 180, 340, { size: Gfx.fit(g, msg, 320, 15, FONT_B, 900), weight: 900, align: 'center', color: '#ffe9a8' });
+      if (this.phase !== 'result') this.finger(g, 180, 430, this.st, charging);
+      else {
+        const r = this.res, j = r.j, s = 1 + 0.6 * Math.exp(-7 * t) * Math.cos(16 * t);
+        g.save(); g.translate(180, 366); g.scale(s, s); Gfx.text(g, j.label, 0, 0, Object.assign({}, DISP, { size: 44, align: 'center', color: j.color, stroke: j.edge, strokeW: 10 })); Gfx.text(g, j.label, 0, 0, Object.assign({}, DISP, { size: 44, align: 'center', color: j.color })); g.restore();
+        Gfx.text(g, `誤差 ${U.sign(r.err, 1)} m`, 180, 402, { size: 16, weight: 900, align: 'center', color: '#fff' });
+        const tip = j.ok ? (Math.abs(r.err) < DATA.score.justTol ? '0.0 m！満点のジャストだよ！' : 'いいね！あとは ±1 m 以内をねらおう') : r.err > 0 ? '行きすぎ！もう少し早く離そう' : '手前！もう少し長く押そう';
+        Gfx.text(g, tip, 180, 440, { size: 13, align: 'center', color: '#ffe9a8' });
+        Gfx.text(g, '本番では、結果のあとに駅のミニ豆知識も出るよ', 180, 480, { size: 11, align: 'center', color: '#9fb6e0' });
+      }
+    }
+    Btns.draw(g, this.btns, t); Hud.topBar(g, false);
+  },
+};
+
 /* ---- 対戦結果（交代 / チャレンジ受信 / オンライン 共通） ---- */
 Scenes.map.versus = {
   enter() {
@@ -2047,9 +2223,10 @@ let last = 0, clock = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now; clock += dt;
   const sc = Scenes.cur;
-  sc.update(dt); Music.update(dt); Spoiler.update(dt); Flash.update(dt); World.update(clock, dt);
+  const pz = Pause.active, gd = pz ? 0 : dt; Pause.update(dt);   // 中断中はゲームの時間を止める
+  sc.update(gd); if (!pz) { Music.update(dt); Spoiler.update(dt); } Flash.update(gd); World.update(clock, gd);
   if (renderer) renderer.render(World.scene, World.camera);
-  Toast.update(dt); g2.save(); g2.clearRect(0, 0, W, H); sc.draw(g2); Flash.draw(g2); Toast.draw(g2); g2.restore();
+  Toast.update(dt); g2.save(); g2.clearRect(0, 0, W, H); sc.draw(g2); Flash.draw(g2); Pause.draw(g2); Toast.draw(g2); g2.restore();
   requestAnimationFrame(frame);
 }
 
@@ -2069,7 +2246,7 @@ function boot() {
   } catch (e) { fatal('起動に失敗しました: ' + (e && e.message ? e.message : e)); }
 }
 
-window.__MONORAIL__ = { DATA, State, Scenes, Input, Judgement, World, Gauge, Spoiler, Flash, Music, Sound, Ranking, Share, Sig, Net, Btns };
+window.__MONORAIL__ = { DATA, State, Scenes, Input, Judgement, World, Gauge, Spoiler, Flash, Music, Sound, Ranking, Share, Sig, Net, Btns, Pause };
 boot();
 })();
 </script>

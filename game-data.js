@@ -190,15 +190,46 @@ window.MONORAIL_DATA = {
     enabled: true,
     thresholdM: 0.05,
     lampColors: ['#3aa0ff', '#3fdc7a', '#ff3b4d', 'rainbow'],
-    stages: [
-      { at: 0.00, kind: 'heartbeat' },
-      { at: 0.30, kind: 'lamp', n: 0 },
-      { at: 0.65, kind: 'lamp', n: 1 },
-      { at: 1.00, kind: 'lamp', n: 2 },
-      { at: 1.35, kind: 'lamp', n: 3 },
-      { at: 1.75, kind: 'cutin',   text: '激アツ!!', sub: 'この感じ…来るぞ!?', dur: 0.95 },
-      { at: 2.75, kind: 'persona', text: '確定', sub: 'ぴったり 0.0 m', tag: 'TAKE OFF', dur: 1.8 },
-      { at: 4.60, kind: 'kakutei', text: '確定!!',   sub: 'ぴったり 0.0 m' },
+    /* 確定演出のパターン。誤差 0.0 m のとき、この中から 1 つがランダムに選ばれる（w が大きいほど出やすい）。
+       stages の at は秒。when:'run' は「停車へ向かう走行シーンが始まってから」の秒、省略は「離した瞬間から」の秒。
+       kind : heartbeat(鼓動) / lamp(保留ランプ n=0..3) / lampoff(ランプ消灯) / cutin(帯カットイン) / persona(決めカット) / kakutei(虹の確定)
+       hold:true  … そのカットインが終わるまで発車を待たせる（persona は自動で待つ）
+       style:'fail' … 青黒いガセ風のカットイン      calm:true … 最初は画面の脈動なし（普通の発車に見せる）
+       runStretch … 走行シーンをその倍率だけゆっくりにして、演出の時間を確保 */
+    patterns: [
+      { id: 'classic', name: '王道（ランプ → 激アツ → 決めカット）', w: 1, stages: [
+        { at: 0.00, kind: 'heartbeat' },
+        { at: 0.30, kind: 'lamp', n: 0 }, { at: 0.65, kind: 'lamp', n: 1 }, { at: 1.00, kind: 'lamp', n: 2 }, { at: 1.35, kind: 'lamp', n: 3 },
+        { at: 1.75, kind: 'cutin',   text: '激アツ!!', sub: 'この感じ…来るぞ!?', dur: 0.95 },
+        { at: 2.75, kind: 'persona', text: '確定', sub: 'ぴったり 0.0 m', tag: 'TAKE OFF', dur: 1.8 },
+        { at: 4.60, kind: 'kakutei', text: '確定!!', sub: 'ぴったり 0.0 m' },
+      ] },
+      { id: 'premiere', name: '突然プレミア（予兆なしでいきなり決めカット）', w: 1, stages: [
+        { at: 0.00, kind: 'heartbeat' },
+        { at: 0.40, kind: 'persona', text: '超確定', sub: '虹の予感', tag: 'PREMIUM', dur: 1.7 },
+        { at: 2.15, kind: 'kakutei', text: '確定!!', sub: 'ぴったり 0.0 m' },
+      ] },
+      { id: 'interrupt', name: '発車後の割り込み（普通に発車 → 走行中に乱入）', w: 1, calm: true, runStretch: 1.7, stages: [
+        { at: 0.35, when: 'run', kind: 'cutin', sfx: 'rev', style: 'rev', text: '割り込み!!', sub: 'この走り…まさか!?', dur: 0.95 },
+        { at: 1.40, when: 'run', kind: 'persona', text: '確定', sub: 'ぴったり 0.0 m', tag: 'INTERRUPT', dur: 1.3 },
+        { at: 2.80, when: 'run', kind: 'kakutei', text: '確定!!', sub: 'ぴったり 0.0 m' },
+      ] },
+      { id: 'fakeout', name: 'ガセ → 逆転（外れそうに見せて、発車後に確定）', w: 1, runStretch: 1.8, stages: [
+        { at: 0.00, kind: 'heartbeat' },
+        { at: 0.30, kind: 'lamp', n: 0 }, { at: 0.65, kind: 'lamp', n: 1 },
+        { at: 1.00, kind: 'cutin', sfx: 'fail', style: 'fail', hold: true, text: '残念…', sub: 'ちょっとズレたかも', dur: 0.95 },
+        { at: 1.25, kind: 'lampoff', sfx: 'lampoff' },
+        { at: 0.40, when: 'run', kind: 'cutin', sfx: 'rev', style: 'rev', text: 'いや…待て!!', sub: 'この感じは…!?', dur: 0.9 },
+        { at: 0.45, when: 'run', kind: 'lamp', n: 3, sfx: 'rev' },
+        { at: 1.45, when: 'run', kind: 'persona', text: '確定', sub: 'ぴったり 0.0 m', tag: 'REVERSAL', dur: 1.3 },
+        { at: 2.85, when: 'run', kind: 'kakutei', text: '確定!!', sub: 'ぴったり 0.0 m' },
+      ] },
+      { id: 'twist', name: '静かな発車 → ズレた？ → どんでん返し', w: 1, calm: true, runStretch: 2.0, stages: [
+        { at: 0.30, when: 'run', kind: 'cutin', sfx: 'fail', style: 'fail', text: 'ズレてる…?', sub: 'ブレーキが早いか!?', dur: 0.95 },
+        { at: 1.40, when: 'run', kind: 'cutin', sfx: 'rev', style: 'rev', text: 'と思いきや!!', sub: '', dur: 0.8 },
+        { at: 2.10, when: 'run', kind: 'persona', text: '確定', sub: 'ぴったり 0.0 m', tag: 'TWIST', dur: 1.3 },
+        { at: 3.50, when: 'run', kind: 'kakutei', text: '確定!!', sub: 'ぴったり 0.0 m' },
+      ] },
     ],
     resultSub: '先バレ的中！ぴったり 0.0 m',
   },
@@ -212,6 +243,8 @@ window.MONORAIL_DATA = {
                     10000 点になれるのは 5 回ともジャストのときだけ。                                        */
     justTol: 0.05, justPts: 2000, perfectMax: 1800, perfectMin: 1000, comboBonus: 100, nonJustCap: 1990,
   },
+  /* 長押しの最短時間[秒]。これより短い「ポチッ」は発車せず、やり直しになります（連打・ミスタップ対策） */
+  charge: { minHoldSec: 0.3 },
   /* オンライン対戦（端末同士を直接つなぐ WebRTC）。iceServers: 接続の手助けをする STUN サーバー（無料の公開サーバー）。
      自分の STUN/TURN に変えたいときはここを書き換えます。同じ Wi-Fi 内なら無くてもつながることが多いです。 */
   online: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] },
